@@ -9,10 +9,14 @@ function loadData() {
     console.log('[DADOS] Iniciando carregamento do arquivo Excel caepi.xlsm...');
     const filePath = path.resolve(__dirname, 'caepi.xlsm');
     
+    // Carrega o arquivo Excel/Planilha
     const workbook = xlsx.readFile(filePath);
+    
+    // Pega o nome da primeira planilha do arquivo
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
+    // Converte a planilha para um formato de dados que o código entende (JSON)
     const records = xlsx.utils.sheet_to_json(worksheet);
     
     caData.clear();
@@ -39,6 +43,7 @@ function getCAInfo(caNumber) {
   
   const caInfo = caData.get(String(caNumber).trim());
   if (caInfo) {
+    // Usamos os nomes de coluna do arquivo Excel
     return {
       'Nº do CA': caInfo['CA'],
       'Data de Validade': caInfo['Validade'],

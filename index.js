@@ -45,7 +45,7 @@ async function connectToWhatsApp() {
       const numeroCA = matchCA[2];
       const dados = getCAInfo(numeroCA); 
       if (dados.error) {
-        resposta = dados.erro;
+        resposta = dados.error;
       } else {
         resposta = `*✅ Resultado da Consulta do CA: ${dados['Nº do CA']}*\n\n` + `*Data de Validade:* ${dados['Data de Validade']}\n` + `*Situação:* ${dados['Situação']}\n` + `*Equipamento:* ${dados['Equipamento']}\n\n` + `*Fabricante:* ${dados['Fabricante']}`;
       }
