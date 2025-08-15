@@ -1,62 +1,68 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
 const qrcode = require('qrcode-terminal');
-const { getCAInfo, loadData } = require('./data.js');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const xlsx = require('xlsx');
+const path = require('path'); // <--- ADICIONADO PARA CORRIGIR O CAMINHO
 
-async function connectToWhatsApp() {
-  console.log('[BOT] Preparando a base de dados em segundo plano...');
-  loadData();
+console.log('[BOT] Preparando a base de dados em segundo plano...');
 
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-  const sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false
-  });
+// Carrega o arquivo Excel de forma dinâmica e segura
+console.log('[DADOS] Iniciando carregamento do arquivo Excel caepi.xlsm...');
+const excelFile = path.join(__dirname, 'caepi.xlsm'); // <--- LINHA MODIFICADA
+const workbook = xlsx.readFile(excelFile, { cellDates: true });
+const sheetName = workbook.SheetNames[0];
+const worksheet = workbook.Sheets[sheetName];
+const data = xlsx.utils.sheet_to_json(worksheet);
+console.log('[DADOS] Base de dados carregada com sucesso!');
 
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect, qr } = update;
-    if (qr) {
-      console.log("--- NOVO QR CODE, POR FAVOR ESCANEIE ---");
-      qrcode.generate(qr, { small: true });
+const client = new Client({
+    authStrategy: new LocalAuth()
+});
+
+client.on('qr', qr => {
+    qrcode.generate(qr, { small: true });
+    console.log('NOVO QR CODE, FAVOR ESCANEAR...');
+});
+
+client.on('ready', () => {
+    console.log('BOT PRONTO E CONECTADO!');
+});
+
+function formatDate(date) {
+    if (!(date instanceof Date) || isNaN(date)) {
+        return "Data inválida";
     }
-    if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log('Conexão fechada, a reconectar...', shouldReconnect);
-      if (shouldReconnect) {
-        connectToWhatsApp();
-      }
-    } else if (connection === 'open') {
-      console.log('[BOT] Conectado com sucesso ao WhatsApp!');
-    }
-  });
-
-  sock.ev.on('creds.update', saveCreds);
-
-  sock.ev.on('messages.upsert', async (m) => {
-    const msg = m.messages[0];
-    if (!msg.message) return;
-    const textoMensagem = (msg.message.conversation || msg.message.extendedTextMessage?.text)?.trim().toLowerCase();
-    if (!textoMensagem) return;
-
-    let resposta = null;
-    const matchCA = textoMensagem.match(/^(ca)\s*(\d+)$/);
-
-    if (matchCA) {
-      const numeroCA = matchCA[2];
-      const dados = getCAInfo(numeroCA); 
-      if (dados.error) {
-        resposta = dados.error;
-      } else {
-        resposta = `*✅ Resultado da Consulta do CA: ${dados['Nº do CA']}*\n\n` + `*Data de Validade:* ${dados['Data de Validade']}\n` + `*Situação:* ${dados['Situação']}\n` + `*Equipamento:* ${dados['Equipamento']}\n\n` + `*Fabricante:* ${dados['Fabricante']}`;
-      }
-    } else if (textoMensagem === 'oi' || textoMensagem === 'olá' || textoMensagem === 'ola') {
-      resposta = 'Olá! Para consultar um Certificado de Aprovação, envie uma mensagem no formato: *CA 12345*';
-    }
-
-    if (resposta) {
-      await sock.sendMessage(msg.key.remoteJid, { text: resposta });
-    }
-  });
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Mês começa em 0
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
 }
 
-connectToWhatsApp();
+client.on('message', message => {
+    const query = message.body.trim();
+
+    // Verifica se a mensagem é um número de CA
+    if (/^\d+$/.test(query)) {
+        console.log(`[BUSCA] Recebida consulta para o CA: ${query}`);
+        const result = data.find(row => String(row.CA) === query);
+
+        if (result) {
+            console.log(`[BUSCA] CA ${query} encontrado.`);
+            const validade = result.VALIDADE ? formatDate(result.VALIDADE) : "Não informada";
+            
+            const response = `*EQUIPAMENTO ENCONTRADO*
+*CA:* ${result.CA}
+*VALIDADE:* ${validade}
+*EQUIPAMENTO:* ${result.EQUIPAMENTO || 'Não informado'}
+*FABRICANTE:* ${result.FABRICANTE || 'Não informado'}
+*SITUAÇÃO:* APROVADO`;
+            
+            client.sendMessage(message.from, response);
+            console.log(`[RESPOSTA] Resposta enviada para ${message.from}.`);
+        } else {
+            console.log(`[BUSCA] CA ${query} não encontrado na base de dados.`);
+            client.sendMessage(message.from, `CA ${query} não encontrado ou não é um número válido.`);
+        }
+    }
+});
+
+client.initialize();
