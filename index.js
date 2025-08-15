@@ -57,8 +57,8 @@ client.on('message', async message => {
         console.log(`[BUSCA] Recebida consulta para o CA: ${caNumber}`);
         
         try {
-            // ATUALIZADO: Usamos TRIM para remover espaços em branco da coluna antes de comparar
-            const sqlQuery = 'SELECT * FROM ca_data WHERE TRIM("NR Registro CA") = $1';
+            // AJUSTE FINAL: Adicionamos "::integer" para converter o texto em número na busca
+            const sqlQuery = 'SELECT * FROM ca_data WHERE "NR Registro CA" = $1::integer';
             const { rows } = await pool.query(sqlQuery, [caNumber]);
             
             if (rows.length > 0) {
