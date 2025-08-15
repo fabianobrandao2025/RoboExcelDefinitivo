@@ -1,13 +1,13 @@
 const qrcode = require('qrcode-terminal');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const xlsx = require('xlsx');
-const path = require('path'); // <--- ADICIONADO PARA CORRIGIR O CAMINHO
+const path = require('path');
 
 console.log('[BOT] Preparando a base de dados em segundo plano...');
 
-// Carrega o arquivo Excel de forma dinâmica e segura
-console.log('[DADOS] Iniciando carregamento do arquivo Excel caepi.xlsm...');
-const excelFile = path.join(__dirname, 'caepi.xlsm'); // <--- LINHA MODIFICADA
+// Carrega o arquivo Excel com o nome corrigido (.xlsx)
+console.log('[DADOS] Iniciando carregamento do arquivo Excel caepi.xlsx...');
+const excelFile = path.join(__dirname, 'caepi.xlsx'); // <--- NOME DO ARQUIVO CORRIGIDO AQUI
 const workbook = xlsx.readFile(excelFile, { cellDates: true });
 const sheetName = workbook.SheetNames[0];
 const worksheet = workbook.Sheets[sheetName];
@@ -54,15 +54,4 @@ client.on('message', message => {
 *VALIDADE:* ${validade}
 *EQUIPAMENTO:* ${result.EQUIPAMENTO || 'Não informado'}
 *FABRICANTE:* ${result.FABRICANTE || 'Não informado'}
-*SITUAÇÃO:* APROVADO`;
-            
-            client.sendMessage(message.from, response);
-            console.log(`[RESPOSTA] Resposta enviada para ${message.from}.`);
-        } else {
-            console.log(`[BUSCA] CA ${query} não encontrado na base de dados.`);
-            client.sendMessage(message.from, `CA ${query} não encontrado ou não é um número válido.`);
-        }
-    }
-});
-
-client.initialize();
+*SITUAÇÃO:* A
