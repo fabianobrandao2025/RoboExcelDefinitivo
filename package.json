@@ -1,0 +1,11 @@
+{
+  "name": "roboexcelcorreto",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": { "start": "node index.js" },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.5",
+    "xlsx": "^0.18.5",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
