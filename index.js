@@ -29,4 +29,73 @@ const client = new Client({
 });
 
 client.on('qr', qr => {
-    qrcode.generate(qr, {
+    qrcode.generate(qr, { small: true });
+    console.log('NOVO QR CODE, FAVOR ESCANEAR...');
+});
+
+client.on('ready', () => {
+    console.log('BOT PRONTO E CONECTADO!');
+});
+
+function formatDate(dateString) {
+    if (!dateString) return "Não informada";
+    const date = new Date(dateString);
+    if (isNaN(date)) return dateString;
+    
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+client.on('message', async message => {
+    const userInput = message.body.trim();
+    const match = userInput.match(/^ca\s+(\d+)$/i);
+
+    if (match) {
+        const caNumber = match[1];
+        console.log(`[BUSCA] Recebida consulta para o CA: ${caNumber}`);
+        
+        try {
+            // Usamos TRIM para remover espaços em branco e garantir a busca correta
+            const sqlQuery = 'SELECT * FROM ca_data WHERE TRIM("NR Registro CA") = $1';
+            const { rows } = await pool.query(sqlQuery, [caNumber]);
+            
+            if (rows.length > 0) {
+                const result = rows[0];
+                console.log(`[BUSCA] CA ${caNumber} encontrado.`);
+
+                const validade = formatDate(result["DATA DE VALIDADE"]);
+                const situacao = result["SITUACAO"] || 'Não informada';
+                const equipamento = result["EQUIPAMENTO"] || 'Não informado';
+                const processo = result["NR DO PROCESSO"] || 'Não informado';
+                const cnpj = result["CNPJ"] || 'Não informado';
+                const razaoSocial = result["RAZAO SOCIAL"] || 'Não informada';
+                
+                const response = `*Certificado de Aprovação Encontrado* ✅
+-----------------------------------
+*CA:* ${result["NR Registro CA"]}
+*Validade:* ${validade}
+*Situação:* ${situacao}
+*Equipamento:* ${equipamento}
+*Processo:* ${processo}
+*CNPJ:* ${cnpj}
+*Fabricante/Importador:* ${razaoSocial}
+-----------------------------------`;
+                
+                client.sendMessage(message.from, response);
+
+            } else {
+                console.log(`[BUSCA] CA ${caNumber} não encontrado.`);
+                client.sendMessage(message.from, `❌ O CA número ${caNumber} não foi encontrado. Verifique o número e tente novamente.`);
+            }
+        } catch (error) {
+            console.error('[DATABASE] Erro ao consultar:', error);
+            client.sendMessage(message.from, 'Desculpe, ocorreu um erro interno ao consultar a base de dados.');
+        }
+    } else {
+        client.sendMessage(message.from, 'Olá! Para consultar um Certificado de Aprovação, envie uma mensagem no formato: CA 12345');
+    }
+});
+
+client.initialize();
