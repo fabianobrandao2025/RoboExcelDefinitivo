@@ -57,8 +57,8 @@ client.on('message', async message => {
         console.log(`[BUSCA] Recebida consulta para o CA: ${caNumber}`);
         
         try {
-            // AJUSTE FINAL: Adicionamos "::integer" para converter o texto em número na busca
-            const sqlQuery = 'SELECT * FROM ca_data WHERE "NR Registro CA" = $1::integer';
+            // AJUSTE FINAL E DEFINITIVO: Removemos o "::integer" e usamos TRIM para comparar TEXTO com TEXTO.
+            const sqlQuery = 'SELECT * FROM ca_data WHERE TRIM("NR Registro CA") = $1';
             const { rows } = await pool.query(sqlQuery, [caNumber]);
             
             if (rows.length > 0) {
@@ -68,7 +68,7 @@ client.on('message', async message => {
                 const validade = formatDate(result["DATA DE VALIDADE"]);
                 const situacao = result["SITUAÇÃO"] || 'Não informada';
                 const processo = result["NR DO PROCESSO"] || 'Não informado';
-                const cnpj = result["CNPJ"] || 'Não informado';
+                const cnpj = result["CNPJ"] || 'Não informada';
                 const razaoSocial = result["RA"] || 'Não informada';
                 
                 const response = `*Certificado de Aprovação Encontrado* ✅
