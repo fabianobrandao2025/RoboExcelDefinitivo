@@ -1,8 +1,8 @@
 const qrcode = require('qrcode-terminal');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const { Pool } = require('pg'); // Pacote para conectar ao PostgreSQL
+const { Pool } = require('pg');
 
-// O bot vai pegar a URL do banco de dados das variáveis de ambiente da Render
+// Conexão com o banco de dados
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -12,9 +12,26 @@ const pool = new Pool({
 
 console.log('[BOT] Sistema iniciado. Conectando ao banco de dados...');
 
+// INÍCIO DA MUDANÇA IMPORTANTE
+// Adicionamos configurações especiais para o Puppeteer (o navegador invisível)
+// para que ele funcione corretamente na Render.
 const client = new Client({
-    authStrategy: new LocalAuth()
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process', // Esta opção pode não funcionar no Windows, mas é crucial para o Linux da Render
+            '--disable-gpu'
+        ],
+    }
 });
+// FIM DA MUDANÇA IMPORTANTE
 
 client.on('qr', qr => {
     qrcode.generate(qr, { small: true });
@@ -25,12 +42,10 @@ client.on('ready', () => {
     console.log('BOT PRONTO E CONECTADO!');
 });
 
-// A função de formatar a data continua a mesma
 function formatDate(dateString) {
     if (!dateString) return "Data inválida";
-    // Tenta criar um objeto de data. Se o formato for compatível, funciona.
     const date = new Date(dateString);
-    if (isNaN(date)) return dateString; // Se não for uma data válida, retorna o texto original
+    if (isNaN(date)) return dateString;
     
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -38,6 +53,7 @@ function formatDate(dateString) {
     return `${day}/${month}/${year}`;
 }
 
+// Lógica de mensagem
 client.on('message', async message => {
     const query = message.body.trim();
 
@@ -45,17 +61,12 @@ client.on('message', async message => {
         console.log(`[BUSCA] Recebida consulta para o CA: ${query}`);
         
         try {
-            // SQL para buscar no banco de dados. $1 é um placeholder seguro para a variável.
-            // IMPORTANTE: O nome da tabela é "ca_data". O nome da coluna é "CA".
-            // Use aspas duplas se seus nomes de coluna no CSV tiverem espaços ou maiúsculas.
             const sqlQuery = 'SELECT * FROM ca_data WHERE "CA" = $1';
             const { rows } = await pool.query(sqlQuery, [query]);
             
             if (rows.length > 0) {
                 const result = rows[0];
                 console.log(`[BUSCA] CA ${query} encontrado no banco de dados.`);
-                
-                // Os nomes (VALIDADE, EQUIPAMENTO) devem ser IDÊNTICOS aos do seu banco de dados
                 const validade = result.VALIDADE ? formatDate(result.VALIDADE) : "Não informada";
                 
                 const response = `*EQUIPAMENTO ENCONTRADO*
@@ -70,12 +81,15 @@ client.on('message', async message => {
 
             } else {
                 console.log(`[BUSCA] CA ${query} não encontrado no banco de dados.`);
-                client.sendMessage(message.from, `CA ${query} não encontrado ou não é um número válido.`);
+                client.sendMessage(message.from, `O CA número ${query} não foi encontrado em nossa base de dados. Por favor, verifique o número e tente novamente.`);
             }
         } catch (error) {
             console.error('[DATABASE] Erro ao consultar o banco de dados:', error);
-            client.sendMessage(message.from, 'Desculpe, ocorreu um erro ao consultar a base de dados.');
+            client.sendMessage(message.from, 'Desculpe, ocorreu um erro interno ao consultar a base de dados.');
         }
+    } else {
+        console.log(`[INFO] Mensagem de texto ignorada: "${query}"`);
+        client.sendMessage(message.from, 'Olá! Para consultar, por favor, envie apenas o número do Certificado de Aprovação (CA).');
     }
 });
 
