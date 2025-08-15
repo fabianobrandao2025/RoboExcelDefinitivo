@@ -11,7 +11,6 @@ const pool = new Pool({
 
 console.log('[BOT] Sistema iniciado. Conectando ao banco de dados...');
 
-// CONFIGURAÇÃO ESSENCIAL PARA FUNCIONAR NA RENDER
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -58,7 +57,8 @@ client.on('message', async message => {
         console.log(`[BUSCA] Recebida consulta para o CA: ${caNumber}`);
         
         try {
-            const sqlQuery = 'SELECT * FROM ca_data WHERE "NR Registro CA" = $1';
+            // ATUALIZADO: Usamos TRIM para remover espaços em branco da coluna antes de comparar
+            const sqlQuery = 'SELECT * FROM ca_data WHERE TRIM("NR Registro CA") = $1';
             const { rows } = await pool.query(sqlQuery, [caNumber]);
             
             if (rows.length > 0) {
