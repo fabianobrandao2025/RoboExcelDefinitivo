@@ -1,10 +1,8 @@
-// Versão do import.js para rodar na Render
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 const csv = require('csv-parser');
 
-// A Render injeta a DATABASE_URL automaticamente
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
@@ -41,10 +39,9 @@ fs.createReadStream(csvFilePath)
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-
-      // Pega os nomes das colunas do primeiro objeto de dados
+      
       const columns = Object.keys(rows[0]).map(name => `"${name}"`).join(', ');
-
+      
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const values = Object.values(row);
