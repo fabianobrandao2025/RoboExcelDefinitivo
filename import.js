@@ -1,5 +1,4 @@
 // Versão do import.js para rodar na Render
-
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
@@ -45,7 +44,7 @@ fs.createReadStream(csvFilePath)
 
       // Pega os nomes das colunas do primeiro objeto de dados
       const columns = Object.keys(rows[0]).map(name => `"${name}"`).join(', ');
-      
+
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         const values = Object.values(row);
