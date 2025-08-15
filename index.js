@@ -11,6 +11,7 @@ const pool = new Pool({
 
 console.log('[BOT] Sistema iniciado. Conectando ao banco de dados...');
 
+// CONFIGURAÇÃO ESSENCIAL PARA FUNCIONAR NA RENDER
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -48,19 +49,15 @@ function formatDate(dateString) {
     return `${day}/${month}/${year}`;
 }
 
-// LÓGICA DE MENSAGEM TOTALMENTE ATUALIZADA
 client.on('message', async message => {
     const userInput = message.body.trim();
-    // Expressão regular para encontrar o padrão "CA 12345" (ignora maiúsculas/minúsculas)
     const match = userInput.match(/^ca\s+(\d+)$/i);
 
-    // 1. SE a mensagem corresponder ao padrão "CA 12345"
     if (match) {
-        const caNumber = match[1]; // Pega apenas o número
+        const caNumber = match[1];
         console.log(`[BUSCA] Recebida consulta para o CA: ${caNumber}`);
         
         try {
-            // ATUALIZADO: Busca na coluna correta "NR Registro CA"
             const sqlQuery = 'SELECT * FROM ca_data WHERE "NR Registro CA" = $1';
             const { rows } = await pool.query(sqlQuery, [caNumber]);
             
@@ -68,12 +65,11 @@ client.on('message', async message => {
                 const result = rows[0];
                 console.log(`[BUSCA] CA ${caNumber} encontrado.`);
 
-                // ATUALIZADO: Pega todos os dados pertinentes das colunas corretas
                 const validade = formatDate(result["DATA DE VALIDADE"]);
                 const situacao = result["SITUAÇÃO"] || 'Não informada';
                 const processo = result["NR DO PROCESSO"] || 'Não informado';
                 const cnpj = result["CNPJ"] || 'Não informado';
-                const razaoSocial = result["RA"] || 'Não informada'; // Presumi que RA seja Razão Social
+                const razaoSocial = result["RA"] || 'Não informada';
                 
                 const response = `*Certificado de Aprovação Encontrado* ✅
 -----------------------------------
@@ -96,7 +92,6 @@ client.on('message', async message => {
             client.sendMessage(message.from, 'Desculpe, ocorreu um erro interno ao consultar a base de dados.');
         }
     } else {
-        // 2. SE a mensagem NÃO corresponder ao padrão, envia a mensagem de ajuda
         console.log(`[INFO] Mensagem inválida recebida: "${userInput}"`);
         client.sendMessage(message.from, 'Olá! Para consultar um Certificado de Aprovação, envie uma mensagem no formato: CA 12345');
     }
