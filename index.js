@@ -48,6 +48,15 @@ function formatDate(dateString) {
     return `${day}/${month}/${year}`;
 }
 
+function formatLargeNumber(value) {
+    if (!value) return 'Não informado';
+    try {
+        return String(BigInt(Number(value)));
+    } catch (e) {
+        return value;
+    }
+}
+
 client.on('message', async message => {
     const userInput = message.body.trim();
     const match = userInput.match(/^ca\s+(\d+)$/i);
@@ -57,7 +66,6 @@ client.on('message', async message => {
         console.log(`[BUSCA] Recebida consulta para o CA: ${caNumber}`);
         
         try {
-            // Usamos TRIM para remover espaços em branco e garantir a busca correta
             const sqlQuery = 'SELECT * FROM ca_data WHERE TRIM("NR Registro CA") = $1';
             const { rows } = await pool.query(sqlQuery, [caNumber]);
             
@@ -65,23 +73,32 @@ client.on('message', async message => {
                 const result = rows[0];
                 console.log(`[BUSCA] CA ${caNumber} encontrado.`);
 
+                // ===== INÍCIO DA LÓGICA DOS EMOJIS =====
                 const validade = formatDate(result["DATA DE VALIDADE"]);
-                const situacao = result["SITUACAO"] || 'Não informada';
-                const equipamento = result["EQUIPAMENTO"] || 'Não informado';
-                const processo = result["NR DO PROCESSO"] || 'Não informado';
-                const cnpj = result["CNPJ"] || 'Não informado';
+                let situacao = (result["SITUACAO"] || 'Não informada').replace('VLIDO', 'VÁLIDO');
+                
+                // Adiciona o emoji com base no texto da situação
+                if (situacao.toUpperCase() === 'VÁLIDO') {
+                    situacao += ' ✅';
+                } else if (situacao.toUpperCase() === 'VENCIDO') {
+                    situacao += ' ❌';
+                }
+
+                const equipamento = (result["EQUIPAMENTO"] || 'Não informado').replace('CULOS', 'ÓCULOS');
+                const cnpj = formatLargeNumber(result["CNPJ"]);
                 const razaoSocial = result["RAZAO SOCIAL"] || 'Não informada';
                 
-                const response = `*Certificado de Aprovação Encontrado* ✅
+                // Resposta final sem a linha "Processo"
+                const response = `*Certificado de Aprovação Encontrado*
 -----------------------------------
 *CA:* ${result["NR Registro CA"]}
 *Validade:* ${validade}
 *Situação:* ${situacao}
 *Equipamento:* ${equipamento}
-*Processo:* ${processo}
 *CNPJ:* ${cnpj}
 *Fabricante/Importador:* ${razaoSocial}
 -----------------------------------`;
+                // ===== FIM DA LÓGICA DOS EMOJIS =====
                 
                 client.sendMessage(message.from, response);
 
