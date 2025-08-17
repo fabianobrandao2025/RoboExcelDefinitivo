@@ -48,16 +48,6 @@ function formatDate(dateString) {
     return `${day}/${month}/${year}`;
 }
 
-function formatLargeNumber(value) {
-    if (!value || typeof value !== 'string') return 'Não informado';
-    try {
-        const parsableValue = value.replace(',', '.');
-        return String(BigInt(Number(parsableValue)));
-    } catch (e) {
-        return value;
-    }
-}
-
 client.on('message', async message => {
     const userInput = message.body.trim();
     const match = userInput.match(/^ca\s+(\d+)$/i);
@@ -75,9 +65,11 @@ client.on('message', async message => {
                 console.log(`[BUSCA] CA ${caNumber} encontrado.`);
 
                 const validade = formatDate(result["DATA DE VALIDADE"]);
-                let situacao = result["SITUACAO"] || 'Não informada';
                 
-                if (situacao.toUpperCase().includes('VLIDO')) {
+                // ===== LÓGICA FINAL E CORRIGIDA DE ACENTUAÇÃO E EMOJIS =====
+                let situacao = result["SITUACAO"] || 'Não informada';
+                // Procura especificamente pelo erro V?LIDO e o substitui
+                if (situacao.toUpperCase() === 'V?LIDO') {
                     situacao = 'VÁLIDO';
                 }
                 
