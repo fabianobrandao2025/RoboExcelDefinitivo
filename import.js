@@ -65,4 +65,4 @@ fs.createReadStream(csvFilePath)
       client.release();
       pool.end();
     }
-  });
+  }); 
