@@ -48,5 +48,71 @@ function formatDate(dateString) {
     return `${day}/${month}/${year}`;
 }
 
+function formatLargeNumber(value) {
+    if (!value || typeof value !== 'string') return 'Não informado';
+    try {
+        const parsableValue = value.replace(',', '.');
+        return String(BigInt(Number(parsableValue)));
+    } catch (e) {
+        return value;
+    }
+}
+
 client.on('message', async message => {
     const userInput = message.body.trim();
+    const match = userInput.match(/^ca\s+(\d+)$/i);
+
+    if (match) {
+        const caNumber = match[1];
+        console.log(`[BUSCA] Recebida consulta para o CA: ${caNumber}`);
+        
+        try {
+            const sqlQuery = 'SELECT * FROM ca_data WHERE TRIM("NR Registro CA") = $1';
+            const { rows } = await pool.query(sqlQuery, [caNumber]);
+            
+            if (rows.length > 0) {
+                const result = rows[0];
+                console.log(`[BUSCA] CA ${caNumber} encontrado.`);
+
+                const validade = formatDate(result["DATA DE VALIDADE"]);
+                let situacao = result["SITUACAO"] || 'Não informada';
+                
+                if (situacao.toUpperCase().includes('VLIDO')) {
+                    situacao = 'VÁLIDO';
+                }
+                
+                let situacaoComEmoji = situacao;
+                if (situacao.toUpperCase() === 'VÁLIDO') {
+                    situacaoComEmoji += ' ✅';
+                } else if (situacao.toUpperCase() === 'VENCIDO') {
+                    situacaoComEmoji += ' ❌';
+                }
+
+                const equipamento = (result["EQUIPAMENTO"] || 'Não informado');
+                const razaoSocial = result["RAZAO SOCIAL"] || 'Não informada';
+                
+                const response = `*Certificado de Aprovação Encontrado* ✅
+-----------------------------------
+*CA:* ${result["NR Registro CA"]}
+*Validade:* ${validade}
+*Situação:* ${situacaoComEmoji}
+*Equipamento:* ${equipamento}
+*Fabricante/Importador:* ${razaoSocial}
+-----------------------------------`;
+                
+                client.sendMessage(message.from, response);
+
+            } else {
+                console.log(`[BUSCA] CA ${caNumber} não encontrado.`);
+                client.sendMessage(message.from, `❌ O CA número ${caNumber} não foi encontrado. Verifique o número e tente novamente.`);
+            }
+        } catch (error) {
+            console.error('[DATABASE] Erro ao consultar:', error);
+            client.sendMessage(message.from, 'Desculpe, ocorreu um erro interno ao consultar a base de dados.');
+        }
+    } else {
+        client.sendMessage(message.from, 'Olá! Para consultar um Certificado de Aprovação, envie uma mensagem no formato: CA 12345');
+    }
+});
+
+client.initialize();
